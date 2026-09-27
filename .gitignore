@@ -25,3 +25,6 @@ venv/
 *.swp
 .idea/
 .vscode/
+
+# terraform-rendered metallb pool
+infra/modules/addons/.metallb-pool.yaml

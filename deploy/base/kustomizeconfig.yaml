@@ -1,0 +1,48 @@
+# Teach kustomize the name references inside CRD fields it doesn't know natively,
+# so namePrefix/nameSuffix rewrite them consistently.
+nameReference:
+  - kind: Service
+    version: v1
+    fieldSpecs:
+      - path: spec/strategy/canary/stableService
+        kind: Rollout
+      - path: spec/strategy/canary/canaryService
+        kind: Rollout
+  - kind: Ingress
+    group: networking.k8s.io
+    fieldSpecs:
+      - path: spec/strategy/canary/trafficRouting/nginx/stableIngress
+        kind: Rollout
+  - kind: ServiceAccount
+    version: v1
+    fieldSpecs:
+      - path: spec/template/spec/serviceAccountName
+        kind: Rollout
+  - kind: ConfigMap
+    version: v1
+    fieldSpecs:
+      - path: spec/template/spec/containers/envFrom/configMapRef/name
+        kind: Rollout
+      - path: spec/template/spec/containers/env/valueFrom/configMapKeyRef/name
+        kind: Rollout
+      - path: spec/template/spec/volumes/configMap/name
+        kind: Rollout
+  - kind: Secret
+    version: v1
+    fieldSpecs:
+      - path: spec/template/spec/containers/envFrom/secretRef/name
+        kind: Rollout
+      - path: spec/template/spec/containers/env/valueFrom/secretKeyRef/name
+        kind: Rollout
+      - path: spec/template/spec/volumes/secret/secretName
+        kind: Rollout
+  - kind: Rollout
+    group: argoproj.io
+    fieldSpecs:
+      - path: spec/scaleTargetRef/name
+        kind: HorizontalPodAutoscaler
+  - kind: AnalysisTemplate
+    group: argoproj.io
+    fieldSpecs:
+      - path: spec/strategy/canary/steps/analysis/templates/templateName
+        kind: Rollout

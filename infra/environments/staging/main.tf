@@ -11,8 +11,9 @@ module "cluster" {
 }
 
 module "addons" {
-  source     = "../../modules/addons"
-  depends_on = [module.cluster]
+  source          = "../../modules/addons"
+  kubeconfig_path = local.kubeconfig_path
+  depends_on      = [module.cluster]
 }
 
 output "cluster_name" {

@@ -9,8 +9,11 @@ resource "kind_cluster" "this" {
     api_version = "kind.x-k8s.io/v1alpha4"
 
     # No default CNI: Cilium owns networking and enforces NetworkPolicy.
+    # Explicit pod/service subnets instead of relying on defaults.
     networking {
       disable_default_cni = true
+      pod_subnet          = var.pod_subnet
+      service_subnet      = var.service_subnet
     }
 
     # control-plane = ingress node

@@ -6,6 +6,9 @@ labels:
       app.kubernetes.io/managed-by: kustomize
     includeSelectors: false
 
+configurations:
+  - kustomizeconfig.yaml
+
 resources:
   - serviceaccount.yaml
   - configmap.yaml

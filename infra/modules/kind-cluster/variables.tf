@@ -25,3 +25,15 @@ variable "kubeconfig_path" {
   description = "Where to write the generated kubeconfig for this cluster."
   type        = string
 }
+
+variable "pod_subnet" {
+  description = "CIDR for pod IPs."
+  type        = string
+  default     = "10.244.0.0/16"
+}
+
+variable "service_subnet" {
+  description = "CIDR for Service ClusterIPs."
+  type        = string
+  default     = "10.96.0.0/16"
+}
