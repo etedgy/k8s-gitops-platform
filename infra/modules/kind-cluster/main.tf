@@ -1,5 +1,3 @@
-# Reusable kind cluster wired for ingress; swap for an EKS/AKS/GKE module with the same outputs.
-
 resource "kind_cluster" "this" {
   name            = var.cluster_name
   kubeconfig_path = var.kubeconfig_path
@@ -10,7 +8,7 @@ resource "kind_cluster" "this" {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
 
-    # Control-plane doubles as the ingress node (label + published 80/443).
+    # control-plane = ingress node
     node {
       role = "control-plane"
 

@@ -1,7 +1,5 @@
-# Environment: PROD. Thin wiring only; reusable logic lives in ../../modules.
-
 locals {
-  # Static path so the provider config below has no resource dependency.
+  # static path: avoids provider<->resource dependency
   kubeconfig_path = abspath("${path.module}/.kube/config")
 }
 

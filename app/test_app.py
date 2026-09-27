@@ -1,4 +1,3 @@
-"""Smoke tests run by CI before the image is built."""
 import app as appmod
 
 

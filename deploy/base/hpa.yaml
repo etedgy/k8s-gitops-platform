@@ -18,7 +18,7 @@ spec:
           averageUtilization: 70
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 300  # slow down-scale to avoid flapping
+      stabilizationWindowSeconds: 300  # anti-flap
       policies:
         - type: Percent
           value: 50

@@ -1,7 +1,5 @@
 name: ci
 
-# Test, build, scan, and push the image (tagged by immutable git SHA).
-
 on:
   push:
     branches: [main]
@@ -75,5 +73,5 @@ jobs:
         with:
           image-ref: ${{ env.IMAGE }}:${{ github.sha }}
           format: table
-          exit-code: "0"  # report-only for the demo
+          exit-code: "0"  # report-only
           severity: CRITICAL,HIGH

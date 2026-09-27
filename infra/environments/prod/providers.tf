@@ -10,7 +10,7 @@ terraform {
       version = "~> 2.13"
     }
   }
-  # Local state for the exercise; use a remote backend per env in production.
+  # local state; use remote backend per env in prod
 }
 
 provider "kind" {}

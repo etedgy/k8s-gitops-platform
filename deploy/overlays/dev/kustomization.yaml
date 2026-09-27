@@ -9,7 +9,7 @@ resources:
   - ../../base
 
 images:
-  - name: web  # CI overwrites newTag with the built digest/sha
+  - name: web  # CI sets newTag to the built sha
     newName: ghcr.io/OWNER/assignment-web
     newTag: dev
 

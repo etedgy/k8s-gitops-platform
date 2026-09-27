@@ -1,5 +1,3 @@
-# Cluster addons: ingress-nginx (external exposure) + metrics-server (feeds the HPA).
-
 variable "ingress_nginx_version" {
   type    = string
   default = "4.11.2"
@@ -18,7 +16,7 @@ resource "helm_release" "ingress_nginx" {
   namespace        = "ingress-nginx"
   create_namespace = true
 
-  # Run on the ingress-ready control-plane node and publish via hostPort (kind).
+  # kind: run on ingress-ready node via hostPort
   values = [yamlencode({
     controller = {
       hostPort     = { enabled = true }
@@ -41,7 +39,7 @@ resource "helm_release" "metrics_server" {
   namespace        = "kube-system"
   create_namespace = false
 
-  # kind's kubelet certs are self-signed; not needed on managed clusters.
+  # kind only: self-signed kubelet certs
   values = [yamlencode({
     args = ["--kubelet-insecure-tls"]
   })]

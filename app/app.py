@@ -1,4 +1,3 @@
-"""Minimal demo web service for the DevOps assignment."""
 import os
 import time
 import threading
@@ -40,13 +39,13 @@ def index():
 
 @app.route("/healthz")
 def healthz():
-    # Liveness: cheap and dependency-free so a slow dependency can't cause restarts.
+    # liveness: keep cheap / dependency-free
     return jsonify(status="ok"), 200
 
 
 @app.route("/readyz")
 def readyz():
-    # Readiness: gates traffic; would also check downstream deps in a real app.
+    # readiness: gates traffic
     if _ready.is_set():
         return jsonify(status="ready"), 200
     return jsonify(status="not-ready"), 503
@@ -63,7 +62,7 @@ def toggle_ready():
 
 @app.route("/work")
 def work():
-    # Burns CPU to demo the HPA.
+    # burns CPU (HPA demo)
     ms = min(int(request.args.get("ms", 200)), 5000)
     deadline = time.time() + ms / 1000.0
     x = 0

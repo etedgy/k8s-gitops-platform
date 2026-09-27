@@ -1,4 +1,4 @@
-# Local (kind) workflows. Prereqs: docker, terraform, kubectl, kind.
+# local kind workflows
 
 ENV ?= dev
 IMAGE ?= assignment-web

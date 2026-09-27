@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: web-config
-# Non-secret config only; overlays override per env.
+# non-secret config only
 data:
   APP_ENV: "base"
   APP_VERSION: "0.0.0"

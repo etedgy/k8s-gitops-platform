@@ -3,7 +3,7 @@ kind: PodDisruptionBudget
 metadata:
   name: web
 spec:
-  # Keep >=1 pod serving during node drains / upgrades.
+  # survive node drains
   minAvailable: 1
   selector:
     matchLabels:
