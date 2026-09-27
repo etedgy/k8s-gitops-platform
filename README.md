@@ -224,6 +224,9 @@ Running it surfaced (and I fixed) several bugs static checks miss: Kustomize not
 rewriting name-references inside the Rollout CRD, `runAsNonRoot` needing a numeric
 UID, and gunicorn needing a writable `/tmp` under a read-only rootfs.
 
+**See [docs/DEMO.md](docs/DEMO.md)** for the captured evidence — command output plus
+screenshots of the Argo CD app tree and a live Argo Rollouts canary.
+
 ## AI tool usage
 I used an AI coding assistant (Claude) to scaffold the repo, draft manifests/IaC/
 docs, and speed up boilerplate, then validated as above. The architecture
