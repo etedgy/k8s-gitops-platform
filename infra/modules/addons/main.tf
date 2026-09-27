@@ -23,6 +23,29 @@ variable "prometheus_version" {
   default = "25.27.0"
 }
 
+variable "cilium_version" {
+  type    = string
+  default = "1.16.3"
+}
+
+# CNI + network-policy enforcement. Installed first: nodes are NotReady without
+# it (default CNI is disabled), so every other addon depends on it.
+resource "helm_release" "cilium" {
+  name       = "cilium"
+  repository = "https://helm.cilium.io"
+  chart      = "cilium"
+  version    = var.cilium_version
+  namespace  = "kube-system"
+
+  # kind-friendly settings (Cilium keeps kube-proxy; k8s IPAM).
+  values = [yamlencode({
+    ipam     = { mode = "kubernetes" }
+    image    = { pullPolicy = "IfNotPresent" }
+    hubble   = { relay = { enabled = true }, ui = { enabled = true } }
+    operator = { replicas = 1 }
+  })]
+}
+
 resource "helm_release" "ingress_nginx" {
   name             = "ingress-nginx"
   repository       = "https://kubernetes.github.io/ingress-nginx"
@@ -30,6 +53,7 @@ resource "helm_release" "ingress_nginx" {
   version          = var.ingress_nginx_version
   namespace        = "ingress-nginx"
   create_namespace = true
+  depends_on       = [helm_release.cilium]
 
   # kind: run on ingress-ready node via hostPort
   values = [yamlencode({
@@ -53,6 +77,7 @@ resource "helm_release" "metrics_server" {
   version          = var.metrics_server_version
   namespace        = "kube-system"
   create_namespace = false
+  depends_on       = [helm_release.cilium]
 
   # kind only: self-signed kubelet certs
   values = [yamlencode({
@@ -68,6 +93,7 @@ resource "helm_release" "argocd" {
   version          = var.argocd_version
   namespace        = "argocd"
   create_namespace = true
+  depends_on       = [helm_release.cilium]
 }
 
 # Progressive-delivery controller (drives the Rollout canary).
@@ -78,6 +104,7 @@ resource "helm_release" "argo_rollouts" {
   version          = var.argo_rollouts_version
   namespace        = "argo-rollouts"
   create_namespace = true
+  depends_on       = [helm_release.cilium]
 }
 
 # Metrics backend the canary AnalysisTemplate queries.
@@ -88,4 +115,5 @@ resource "helm_release" "prometheus" {
   version          = var.prometheus_version
   namespace        = "monitoring"
   create_namespace = true
+  depends_on       = [helm_release.cilium]
 }

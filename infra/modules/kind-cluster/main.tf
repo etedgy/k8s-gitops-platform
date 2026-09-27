@@ -1,12 +1,17 @@
 resource "kind_cluster" "this" {
   name            = var.cluster_name
   kubeconfig_path = var.kubeconfig_path
-  wait_for_ready  = true
+  wait_for_ready  = false # nodes stay NotReady until Cilium (the CNI) is installed
   node_image      = "kindest/node:v1.30.4"
 
   kind_config {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
+
+    # No default CNI: Cilium owns networking and enforces NetworkPolicy.
+    networking {
+      disable_default_cni = true
+    }
 
     # control-plane = ingress node
     node {

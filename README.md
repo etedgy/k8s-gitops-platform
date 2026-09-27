@@ -38,7 +38,8 @@ infra/
   modules/addons/        Reusable: ingress-nginx + metrics-server (Helm)
   environments/          dev/ staging/ prod/ — thin wiring + tfvars     <-- env-specific config
 deploy/
-  base/                  Env-agnostic manifests: Rollout (canary), Services, HPA...
+  base/                  Env-agnostic manifests: Rollout (canary), Services, HPA,
+                         default-deny NetworkPolicies...
   overlays/{dev,staging,prod}/  Per-env name/scale/config/image
 argocd/                  GitOps CD: AppProject + per-env Applications (app-of-apps)
 .github/workflows/       ci.yaml — build/test/scan/push only (CD is Argo, not CI)
@@ -78,6 +79,8 @@ flowchart LR
   During a canary, nginx splits traffic to `web-canary` by weight.
 - **Health checks:** separate **liveness** (`/healthz`, cheap, dependency-free),
   **readiness** (`/readyz`, gates traffic), and **startup** probes.
+- **Networking:** Cilium is the CNI (kind's default doesn't enforce policy);
+  namespaces are **default-deny** with explicit allows only.
 - **Availability & scalability:** `minReplicas ≥ 2` (prod 3), HPA on CPU,
   PodDisruptionBudget, topology spread across nodes.
 
@@ -143,8 +146,10 @@ via the **External Secrets Operator**, and workloads authenticate with
    signing (cosign) + admission policy to only run signed images.
 3. **Over-privileged workload / lateral movement.** *Mitigation:* least-privilege
    SA with no API token, dropped caps + read-only FS limit what a compromised pod
-   can do; in prod, **default-deny NetworkPolicies** + mesh mTLS contain
-   east-west movement, and namespace RBAC/quotas isolate teams.
+   can do; **default-deny NetworkPolicies** (enforced by the Cilium CNI — kind's
+   default CNI ignores them) contain east-west movement: pods get DNS egress only,
+   and web accepts ingress only from the ingress controller and Prometheus. In
+   prod, add mesh mTLS and namespace RBAC/quotas for multi-team isolation.
 4. *(bonus)* **Sensitive data exposure** — encryption in transit (mTLS) and at
    rest (KMS on datastores), least-privilege DB users per service.
 
@@ -198,7 +203,7 @@ prod alerts/autoscaling should key off latency/queue depth too.
   signed, non-root, resource-bounded workloads.
 - Full observability stack (kube-prometheus-stack + Grafana + OTel tracing) and
   SLO burn-rate alerts as Terraform-managed addons.
-- Default-deny `NetworkPolicy` per namespace + secrets via External Secrets.
+- Secrets via External Secrets Operator; Cilium L7 policies + Hubble dashboards.
 - `terraform plan` + policy checks (tfsec/Checkov/OPA) as required PR status checks.
 
 ## AI tool usage
