@@ -1,0 +1,84 @@
+name: ci
+
+# Build, test, and publish the container image. Runs on every push/PR.
+# The image is the single promotable artifact — tagged by immutable git SHA and
+# by a moving branch tag. Promotion across environments reuses the SAME digest.
+
+on:
+  push:
+    branches: [main]
+    paths: ["app/**", "deploy/**", ".github/workflows/ci.yaml"]
+  pull_request:
+    paths: ["app/**", "deploy/**", ".github/workflows/ci.yaml"]
+
+permissions:
+  contents: read
+  packages: write   # push to GHCR
+  id-token: write   # OIDC (keyless signing / cloud auth) — no long-lived creds
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/assignment-web
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        working-directory: app
+        run: |
+          pip install -r requirements.txt pytest
+      - name: Unit tests
+        working-directory: app
+        run: pytest -q
+
+  validate-manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build kustomize overlays (fail on error)
+        run: |
+          for env in dev staging prod; do
+            echo "::group::kustomize build $env"
+            kubectl kustomize deploy/overlays/$env
+            echo "::endgroup::"
+          done
+
+  build-and-push:
+    needs: [test, validate-manifests]
+    runs-on: ubuntu-latest
+    # Only publish from main; PRs run test+validate only.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}   # scoped, short-lived, auto-injected
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: app
+          push: true
+          # Immutable SHA tag = the promotable artifact; `edge` moves with main.
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:edge
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
+          format: table
+          exit-code: "0"   # report-only for the demo; set to 1 to gate on CRITICAL
+          severity: CRITICAL,HIGH

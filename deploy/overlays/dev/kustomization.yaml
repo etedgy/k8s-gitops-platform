@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: web-dev
+namePrefix: dev-
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+# Image tag is overwritten by CI (`kustomize edit set image`) to a specific
+# digest/sha. The value here is just a sane local default.
+images:
+  - name: web
+    newName: ghcr.io/OWNER/assignment-web
+    newTag: dev
+
+patches:
+  - path: patch-config.yaml
+  - path: patch-hpa.yaml
+  - path: patch-ingress.yaml

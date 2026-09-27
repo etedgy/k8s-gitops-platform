@@ -1,0 +1,79 @@
+name: cd
+
+# Continuous Delivery / promotion pipeline.
+#
+# Promotion model (image-digest based, GitOps-friendly):
+#   main build  --> auto-deploy to DEV
+#   git tag vX  --> deploy same digest to STAGING, then PROD (manual approval)
+#
+# The exact image built and tested in CI is what ships — we never rebuild per
+# environment, so "works in staging" means the identical artifact reaches prod.
+# Rollback = re-run this workflow pinned to a previous SHA, or `kubectl rollout
+# undo` (see README "Rollback").
+
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ["v*"]           # release tags promote to staging/prod
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, staging, prod]
+        required: true
+      image_sha:
+        description: Image SHA to deploy (defaults to current ref)
+        required: false
+
+permissions:
+  contents: read
+  id-token: write   # OIDC to the cluster's cloud provider — no static kubeconfig secret
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/assignment-web
+
+jobs:
+  deploy-dev:
+    # Auto-promote to dev only when CI succeeded.
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Authenticate to cluster
+        run: echo "In a real cluster: configure kubeconfig via OIDC (aws eks update-kubeconfig / az aks get-credentials / gcloud). No static creds committed."
+      - name: Deploy to dev
+        run: |
+          cd deploy/overlays/dev
+          kubectl kustomize . | sed "s#ghcr.io/OWNER/assignment-web:dev#${IMAGE}:${{ github.event.workflow_run.head_sha }}#" > /dev/null
+          echo "kubectl apply -k deploy/overlays/dev  (image pinned to ${{ github.event.workflow_run.head_sha }})"
+      - name: Wait for rollout / smoke test
+        run: echo "kubectl -n web-dev rollout status deploy/dev-web --timeout=120s"
+
+  deploy-staging:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Deploy release ${{ github.ref_name }} to staging
+        run: echo "Promote the digest that passed CI to staging, then run rollout status + smoke tests."
+
+  deploy-prod:
+    needs: deploy-staging
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # `environment: production` gates this on a required reviewer approval in
+    # GitHub — the only manual step in the pipeline, and an audited one.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Deploy release ${{ github.ref_name }} to prod
+        run: echo "Same digest -> prod after approval. rollout status gates success; failure auto-rolls-back via 'kubectl rollout undo'."

@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web
+spec:
+  # Keep at least one pod serving during voluntary disruptions
+  # (node drains, cluster upgrades). Works together with the HPA minReplicas.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web

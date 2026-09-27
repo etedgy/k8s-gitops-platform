@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+data:
+  # Non-secret configuration only. Secrets never live here — see README
+  # "Secret management". Overlays patch APP_ENV via a merge patch.
+  APP_ENV: "base"
+  APP_VERSION: "0.0.0"
+  LOG_LEVEL: "info"

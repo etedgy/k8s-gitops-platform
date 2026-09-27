@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"  # local kind has no TLS cert; enable in prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: web.localtest.me   # *.localtest.me resolves to 127.0.0.1 — no /etc/hosts edits
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80
