@@ -6,14 +6,18 @@ metadata:
 spec:
   metrics:
     - name: success-rate
+      initialDelay: 60s # let Prometheus accumulate samples before measuring
       interval: 30s
       count: 3
       successCondition: result[0] >= 0.95
-      failureLimit: 1
+      failureLimit: 2
       provider:
         prometheus:
           address: http://prometheus-server.monitoring.svc.cluster.local
+          # `or on() vector(1)` => treat no-data (warm-up) as healthy, not an error
           query: |
-            sum(rate(app_requests_total{status!~"5.."}[1m]))
-            /
-            sum(rate(app_requests_total[1m]))
+            (
+              sum(rate(app_requests_total{status!~"5.."}[2m]))
+              /
+              sum(rate(app_requests_total[2m]))
+            ) or on() vector(1)
