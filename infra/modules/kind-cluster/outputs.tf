@@ -1,8 +1,5 @@
-# Connection details, exported so the environment layer can configure the
-# kubernetes/helm providers without a second manual `kind get kubeconfig` step.
-
 output "kubeconfig_path" {
-  description = "Path to the kubeconfig written by the kind provider."
+  description = "Path to the generated kubeconfig."
   value       = kind_cluster.this.kubeconfig_path
 }
 

@@ -18,8 +18,7 @@ spec:
           averageUtilization: 70
   behavior:
     scaleDown:
-      # Scale down slowly to avoid flapping when load is spiky.
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 300  # slow down-scale to avoid flapping
       policies:
         - type: Percent
           value: 50

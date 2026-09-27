@@ -1,4 +1,4 @@
-"""Tiny smoke tests so CI has something real to run before building the image."""
+"""Smoke tests run by CI before the image is built."""
 import app as appmod
 
 
@@ -24,7 +24,7 @@ def test_readyz_toggles():
     assert c.get("/readyz").status_code == 200
     assert c.post("/toggle-ready").get_json()["ready"] is False
     assert c.get("/readyz").status_code == 503
-    c.post("/toggle-ready")  # restore
+    c.post("/toggle-ready")
     assert c.get("/readyz").status_code == 200
 
 

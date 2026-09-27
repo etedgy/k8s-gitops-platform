@@ -1,24 +1,16 @@
-# Reusable module: a kind (Kubernetes-in-Docker) cluster wired for ingress.
-#
-# Why kind: it makes the whole environment reproducible on any laptop or CI
-# runner with just Docker — no cloud account, no cost, no drift. The same
-# module could be swapped for an EKS/AKS/GKE module without touching the
-# environment configs that consume its outputs (see infra/environments/*).
+# Reusable kind cluster wired for ingress; swap for an EKS/AKS/GKE module with the same outputs.
 
 resource "kind_cluster" "this" {
   name            = var.cluster_name
   kubeconfig_path = var.kubeconfig_path
   wait_for_ready  = true
-  # Pin the node image so clusters are byte-for-byte reproducible across machines.
-  node_image = "kindest/node:v1.30.4"
+  node_image      = "kindest/node:v1.30.4"
 
   kind_config {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
 
-    # Control-plane doubles as the ingress node: it carries the
-    # `ingress-ready` label and publishes 80/443 to the host so the nginx
-    # ingress controller is reachable at http://<host>.
+    # Control-plane doubles as the ingress node (label + published 80/443).
     node {
       role = "control-plane"
 
@@ -43,8 +35,6 @@ resource "kind_cluster" "this" {
       }
     }
 
-    # Worker nodes — count is environment-specific so prod can spread pods
-    # across more nodes (see topologySpreadConstraints in the Deployment).
     dynamic "node" {
       for_each = range(var.worker_count)
       content {

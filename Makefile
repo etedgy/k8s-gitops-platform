@@ -1,5 +1,4 @@
-# One-command workflows for the local (kind) environment.
-# Prereqs: docker, terraform, kubectl, kind. See README "Prerequisites".
+# Local (kind) workflows. Prereqs: docker, terraform, kubectl, kind.
 
 ENV ?= dev
 IMAGE ?= assignment-web

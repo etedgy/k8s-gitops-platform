@@ -5,11 +5,11 @@ metadata:
   labels:
     app.kubernetes.io/name: web
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"  # local kind has no TLS cert; enable in prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"  # enable in prod
 spec:
   ingressClassName: nginx
   rules:
-    - host: web.localtest.me   # *.localtest.me resolves to 127.0.0.1 — no /etc/hosts edits
+    - host: web.localtest.me  # resolves to 127.0.0.1
       http:
         paths:
           - path: /

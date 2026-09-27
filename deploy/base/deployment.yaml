@@ -6,15 +6,14 @@ metadata:
     app.kubernetes.io/name: web
     app.kubernetes.io/part-of: assignment
 spec:
-  # replicas intentionally omitted here; each overlay sets it (and the HPA owns
-  # it at runtime in staging/prod). Keeping it out of base avoids fighting the HPA.
+  # replicas omitted on purpose: the HPA owns it.
   selector:
     matchLabels:
       app.kubernetes.io/name: web
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 0   # never drop below desired during a rollout
+      maxUnavailable: 0
       maxSurge: 1
   template:
     metadata:
@@ -30,7 +29,6 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
-      # Spread replicas across nodes so losing a node doesn't take the app down.
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
@@ -40,7 +38,7 @@ spec:
               app.kubernetes.io/name: web
       containers:
         - name: web
-          image: web  # image name/tag are patched per-overlay by kustomize
+          image: web  # patched per-overlay
           ports:
             - name: http
               containerPort: 8080
@@ -61,9 +59,7 @@ spec:
               cpu: 50m
               memory: 64Mi
             limits:
-              # No CPU limit on purpose: CPU is compressible, and a hard limit
-              # causes throttling/latency under bursts. We cap memory (which is
-              # not compressible) to get a predictable OOM boundary instead.
+              # No CPU limit: avoids throttling latency. Cap memory (non-compressible).
               memory: 128Mi
           livenessProbe:
             httpGet:
@@ -80,7 +76,6 @@ spec:
             periodSeconds: 5
             failureThreshold: 3
           startupProbe:
-            # Gives a slow cold start up to 30s before liveness kicks in.
             httpGet:
               path: /healthz
               port: http

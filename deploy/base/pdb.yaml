@@ -3,8 +3,7 @@ kind: PodDisruptionBudget
 metadata:
   name: web
 spec:
-  # Keep at least one pod serving during voluntary disruptions
-  # (node drains, cluster upgrades). Works together with the HPA minReplicas.
+  # Keep >=1 pod serving during node drains / upgrades.
   minAvailable: 1
   selector:
     matchLabels:

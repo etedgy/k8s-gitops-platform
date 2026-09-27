@@ -1,10 +1,4 @@
-# Cluster addons that the application relies on:
-#   * ingress-nginx  -> external exposure (Ingress -> Service -> pods)
-#   * metrics-server -> CPU/memory metrics that the HorizontalPodAutoscaler needs
-#
-# These are cluster-scoped platform concerns, kept separate from the app so the
-# same app manifests run on a managed cluster (EKS/AKS/GKE) where the platform
-# team owns ingress and metrics instead.
+# Cluster addons: ingress-nginx (external exposure) + metrics-server (feeds the HPA).
 
 variable "ingress_nginx_version" {
   type    = string
@@ -24,8 +18,7 @@ resource "helm_release" "ingress_nginx" {
   namespace        = "ingress-nginx"
   create_namespace = true
 
-  # kind-specific wiring: run the controller on the ingress-ready control-plane
-  # node and publish via hostPort so it is reachable on the mapped host ports.
+  # Run on the ingress-ready control-plane node and publish via hostPort (kind).
   values = [yamlencode({
     controller = {
       hostPort     = { enabled = true }
@@ -48,8 +41,7 @@ resource "helm_release" "metrics_server" {
   namespace        = "kube-system"
   create_namespace = false
 
-  # kind's kubelet serving certs are self-signed, so the metrics-server needs
-  # --kubelet-insecure-tls locally. This flag is NOT used on managed clusters.
+  # kind's kubelet certs are self-signed; not needed on managed clusters.
   values = [yamlencode({
     args = ["--kubelet-insecure-tls"]
   })]

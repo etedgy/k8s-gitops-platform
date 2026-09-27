@@ -10,11 +10,7 @@ terraform {
       version = "~> 2.13"
     }
   }
-
-  # State is local for this exercise. In a real setup this would be a remote
-  # backend with locking, one state per environment, e.g.:
-  #   backend "s3" { bucket=... key="dev/terraform.tfstate" dynamodb_table=... }
-  # (see infra/environments/README.md).
+  # Local state for the exercise; use a remote backend per env in production.
 }
 
 provider "kind" {}

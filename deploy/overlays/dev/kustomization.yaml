@@ -8,10 +8,8 @@ resources:
   - namespace.yaml
   - ../../base
 
-# Image tag is overwritten by CI (`kustomize edit set image`) to a specific
-# digest/sha. The value here is just a sane local default.
 images:
-  - name: web
+  - name: web  # CI overwrites newTag with the built digest/sha
     newName: ghcr.io/OWNER/assignment-web
     newTag: dev
 

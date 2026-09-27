@@ -1,13 +1,7 @@
-# ---------------------------------------------------------------------------
-# Environment: STAGING
-# This file is deliberately thin. All reusable logic lives in ../../modules.
-# Environment-specific values live in terraform.tfvars. Swapping the cluster
-# module for a cloud module would not change the app or the CI/CD pipeline.
-# ---------------------------------------------------------------------------
+# Environment: STAGING. Thin wiring only; reusable logic lives in ../../modules.
 
 locals {
-  # Static path (not a resource output) so the provider config below has no
-  # dependency on a resource — the classic kind+helm bootstrap ordering fix.
+  # Static path so the provider config below has no resource dependency.
   kubeconfig_path = abspath("${path.module}/.kube/config")
 }
 
@@ -19,8 +13,7 @@ module "cluster" {
 }
 
 module "addons" {
-  source = "../../modules/addons"
-  # Ensure the cluster (and its kubeconfig file) exist before Helm runs.
+  source     = "../../modules/addons"
   depends_on = [module.cluster]
 }
 
