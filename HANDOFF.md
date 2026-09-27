@@ -63,10 +63,10 @@ Prereqs: `docker`, `kind`, `kubectl`, `terraform` (≥1.5). Full flow (GitOps + 
 in README "Deployment process"; captured evidence in docs/DEMO.md.
 
 ## Before submitting / next owner's checklist
-1. Replace the `OWNER` placeholder (in `deploy/overlays/*/kustomization.yaml`,
-   `.github/CODEOWNERS`, `argocd/*`) with the real GitHub org/user.
-2. Push to GitHub; consider making it public so CI runs for free.
-3. Apply branch protection (commands in `docs/governance.md`).
+1. Owner/repo are set to `etedgy/k8s-gitops-platform` across manifests, CI, and
+   `argocd/`. If forking, find-and-replace those two values.
+2. Apply branch protection (commands in `docs/governance.md`).
+3. To run CI, make the repo public (free Actions minutes) or add paid minutes.
 4. (Optional) Stand up a real cluster: swap the kind module for a cloud module and
    enable the remote backend (`backend.tf.example`).
 

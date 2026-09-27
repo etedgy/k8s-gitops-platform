@@ -10,7 +10,7 @@ resources:
 
 images:
   - name: web
-    newName: ghcr.io/OWNER/assignment-web
+    newName: ghcr.io/etedgy/assignment-web
     newTag: prod
 
 patches:

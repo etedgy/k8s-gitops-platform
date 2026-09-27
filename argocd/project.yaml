@@ -6,7 +6,7 @@ metadata:
 spec:
   description: Assignment web app
   sourceRepos:
-    - https://github.com/OWNER/eitan-interview.git
+    - https://github.com/etedgy/k8s-gitops-platform.git
   destinations:
     - server: https://kubernetes.default.svc
       namespace: web-dev

@@ -10,7 +10,7 @@ resources:
 
 images:
   - name: web  # CI sets newTag to the built sha
-    newName: ghcr.io/OWNER/assignment-web
+    newName: ghcr.io/etedgy/assignment-web
     newTag: dev
 
 patches:

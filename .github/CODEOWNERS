@@ -1,7 +1,6 @@
 # Every PR requires review from an owner (enforced with "Require review from Code Owners").
-# Replace @OWNER with your GitHub username or team.
-*           @OWNER
+*           @etedgy
 
-/infra/     @OWNER
-/argocd/    @OWNER
-/.github/   @OWNER
+/infra/     @etedgy
+/argocd/    @etedgy
+/.github/   @etedgy

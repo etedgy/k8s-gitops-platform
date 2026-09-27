@@ -6,7 +6,7 @@ metadata:
 spec:
   project: assignment
   source:
-    repoURL: https://github.com/OWNER/eitan-interview.git
+    repoURL: https://github.com/etedgy/k8s-gitops-platform.git
     targetRevision: main
     path: deploy/overlays/prod
   destination:

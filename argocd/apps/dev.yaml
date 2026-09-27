@@ -5,13 +5,13 @@ metadata:
   namespace: argocd
   annotations:
     # Image Updater bumps the dev tag in git automatically (no CI cluster creds).
-    argocd-image-updater.argoproj.io/image-list: web=ghcr.io/OWNER/assignment-web
+    argocd-image-updater.argoproj.io/image-list: web=ghcr.io/etedgy/assignment-web
     argocd-image-updater.argoproj.io/web.update-strategy: newest-build
     argocd-image-updater.argoproj.io/write-back-method: git
 spec:
   project: assignment
   source:
-    repoURL: https://github.com/OWNER/eitan-interview.git
+    repoURL: https://github.com/etedgy/k8s-gitops-platform.git
     targetRevision: main
     path: deploy/overlays/dev
   destination:

@@ -31,7 +31,7 @@ this repo).
 GitHub UI: *Settings → Branches → Add rule for `main`*, or via the CLI:
 
 ```bash
-gh api -X PUT repos/OWNER/eitan-interview/branches/main/protection \
+gh api -X PUT repos/etedgy/k8s-gitops-platform/branches/main/protection \
   -H "Accept: application/vnd.github+json" \
   -f 'required_status_checks[strict]=true' \
   -f 'required_status_checks[checks][][context]=test' \
