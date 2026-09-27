@@ -33,10 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-kubectl@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede  # v4
       - name: Authenticate to cluster
-        run: echo "Real cluster: kubeconfig via OIDC (aws eks update-kubeconfig / az aks get-credentials)."
+        run: |
+          echo "Real cluster: kubeconfig via OIDC (aws eks update-kubeconfig / az aks get-credentials)."
       - name: Deploy to dev
         run: |
           cd deploy/overlays/dev
@@ -50,8 +51,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-kubectl@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede  # v4
       - name: Deploy release ${{ github.ref_name }} to staging
         run: echo "Promote the CI-tested digest to staging, then rollout status + smoke tests."
 
@@ -61,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production  # approval gate
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-kubectl@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede  # v4
       - name: Deploy release ${{ github.ref_name }} to prod
         run: echo "Same digest -> prod after approval; rollout status gates success, else rollout undo."
