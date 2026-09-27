@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: web-dev
+  namespace: argocd
+  annotations:
+    # Image Updater bumps the dev tag in git automatically (no CI cluster creds).
+    argocd-image-updater.argoproj.io/image-list: web=ghcr.io/OWNER/assignment-web
+    argocd-image-updater.argoproj.io/web.update-strategy: newest-build
+    argocd-image-updater.argoproj.io/write-back-method: git
+spec:
+  project: assignment
+  source:
+    repoURL: https://github.com/OWNER/eitan-interview.git
+    targetRevision: main
+    path: deploy/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: web-dev
+  syncPolicy:
+    automated:  # dev auto-syncs and self-heals
+      prune: true
+      selfHeal: true

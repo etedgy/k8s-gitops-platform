@@ -9,7 +9,8 @@ labels:
 resources:
   - serviceaccount.yaml
   - configmap.yaml
-  - deployment.yaml
+  - rollout.yaml
+  - analysistemplate.yaml
   - service.yaml
   - ingress.yaml
   - hpa.yaml

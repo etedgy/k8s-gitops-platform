@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: assignment
+  namespace: argocd
+spec:
+  description: Assignment web app
+  sourceRepos:
+    - https://github.com/OWNER/eitan-interview.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: web-dev
+    - server: https://kubernetes.default.svc
+      namespace: web-staging
+    - server: https://kubernetes.default.svc
+      namespace: web-prod
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

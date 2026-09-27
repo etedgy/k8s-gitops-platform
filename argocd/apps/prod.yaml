@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: web-prod
+  namespace: argocd
+spec:
+  project: assignment
+  source:
+    repoURL: https://github.com/OWNER/eitan-interview.git
+    targetRevision: main
+    path: deploy/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: web-prod
+  # no automated policy: prod promotion is a manual/approved sync
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false

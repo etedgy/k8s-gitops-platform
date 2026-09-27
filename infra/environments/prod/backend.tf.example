@@ -1,0 +1,11 @@
+# Rename to backend.tf to enable remote state with locking for prod.
+# One state key per env => a plan/apply in one env can never touch another.
+terraform {
+  backend "s3" {
+    bucket       = "acme-tfstate"
+    key          = "web/prod/terraform.tfstate"
+    region       = "eu-west-1"
+    encrypt      = true
+    use_lockfile = true # native S3 state locking (Terraform >= 1.10; no DynamoDB)
+  }
+}

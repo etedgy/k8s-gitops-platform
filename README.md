@@ -38,11 +38,14 @@ infra/
   modules/addons/        Reusable: ingress-nginx + metrics-server (Helm)
   environments/          dev/ staging/ prod/ — thin wiring + tfvars     <-- env-specific config
 deploy/
-  base/                  Environment-agnostic k8s manifests (Kustomize base)
+  base/                  Env-agnostic manifests: Rollout (canary), Services, HPA...
   overlays/{dev,staging,prod}/  Per-env name/scale/config/image
-.github/workflows/       ci.yaml (build/test/scan/push) + cd.yaml (promotion)
+argocd/                  GitOps CD: AppProject + per-env Applications (app-of-apps)
+.github/workflows/       ci.yaml — build/test/scan/push only (CD is Argo, not CI)
+.github/CODEOWNERS + pull_request_template.md   PR governance
 docs/architecture.md     Production architecture (30 microservices) + diagram
 docs/troubleshooting.md  The latency-incident playbook
+docs/governance.md       Branch protection & PR/rebase workflow
 Makefile                 One-command local workflows
 ```
 
@@ -50,28 +53,33 @@ Makefile                 One-command local workflows
 
 ```mermaid
 flowchart LR
-  dev["Developer / CI"] -->|docker build, push by digest| reg[("Container registry\nGHCR")]
+  ci["CI (GitHub Actions)"] -->|build, scan, push by digest| reg[("GHCR")]
+  git[("Git repo\n(desired state)")]
   subgraph kind["kind cluster (per env: dev/staging/prod)"]
-    ing["ingress-nginx\nweb.<env>.localtest.me"] --> svc["Service (ClusterIP)"]
-    svc --> p1["web pod"]
-    svc --> p2["web pod"]
-    hpa["HPA (CPU 70%)"] -.scales.-> p1
-    ms["metrics-server"] -.feeds.-> hpa
-    pdb["PodDisruptionBudget"] -.protects.-> p1
+    argo["Argo CD\n(pull / reconcile)"] --> ro["Argo Rollout\n(canary)"]
+    reg -->|Image Updater\nwrites tag to git| git
+    git --> argo
+    ing["ingress-nginx\nweb.<env>.localtest.me"] --> stable["web-stable Svc"]
+    ing -. canary weight .-> canary["web-canary Svc"]
+    stable --> ro
+    canary --> ro
+    hpa["HPA (CPU 70%)"] -.scales.-> ro
+    prom["Prometheus"] -.analysis gate.-> ro
   end
-  reg -->|image pinned by digest| p1 & p2
   user(["curl / browser"]) --> ing
 ```
 
-- **External exposure:** Ingress (`nginx`) → Service → pods, on
-  `web.<env>.localtest.me` (the `localtest.me` wildcard resolves to `127.0.0.1`,
-  so no `/etc/hosts` edits).
+- **Delivery:** CI only builds/scans/pushes; **Argo CD pulls** desired state from
+  git and reconciles it (no external system holds cluster creds). **Argo Rollouts**
+  does a **canary** (20 % → analysis → 50 % → 100 %), auto-aborting if the
+  Prometheus success-rate gate fails.
+- **External exposure:** Ingress (`nginx`) → `web-stable` Service → pods, on
+  `web.<env>.localtest.me` (the `localtest.me` wildcard resolves to `127.0.0.1`).
+  During a canary, nginx splits traffic to `web-canary` by weight.
 - **Health checks:** separate **liveness** (`/healthz`, cheap, dependency-free),
-  **readiness** (`/readyz`, gates traffic), and **startup** probes. Readiness is
-  runtime-togglable (`POST /toggle-ready`) to demo traffic-shifting.
+  **readiness** (`/readyz`, gates traffic), and **startup** probes.
 - **Availability & scalability:** `minReplicas ≥ 2` (prod 3), HPA on CPU,
-  PodDisruptionBudget, topology spread across nodes, and `maxUnavailable: 0`
-  rolling updates.
+  PodDisruptionBudget, topology spread across nodes.
 
 For the **30-microservice production design** (mesh, managed Postgres/Redis/
 RabbitMQ, GitOps, multi-team, 99.9 %), see **[docs/architecture.md](docs/architecture.md)**.
@@ -80,33 +88,33 @@ RabbitMQ, GitOps, multi-team, 99.9 %), see **[docs/architecture.md](docs/archite
 
 **Local (this repo):** `make all ENV=<env>` — see TL;DR.
 
-**CI/CD (`.github/workflows/`):**
-1. **CI** on every push/PR: run unit tests → build all Kustomize overlays (catch
-   config errors) → build image → **Trivy** scan → push to GHCR tagged with the
-   **immutable git SHA** (+ moving `edge`).
-2. **CD**: a successful CI on `main` auto-deploys to **dev**. A release tag `vX`
-   promotes the **same image digest** to **staging**, then **prod** behind a
-   required GitHub Environment approval.
+**CI (`.github/workflows/ci.yaml`)** — the *only* part in GitHub Actions. On every
+push/PR: unit tests → build all Kustomize overlays → build image → **Trivy** scan
+→ push to GHCR tagged with the **immutable git SHA**. CI holds no cluster creds.
 
-> Note: the CD job steps that talk to a live cluster are illustrative `echo`s,
-> since there's no hosted cluster in this exercise. The promotion *logic*
-> (digest reuse, environments, approval gate) is real; wiring them to a cluster
-> is `aws eks update-kubeconfig` / `az aks get-credentials` via OIDC + `kubectl apply -k`.
+**CD is GitOps (`argocd/`)** — Argo CD runs *in* the cluster and continuously
+reconciles each env to what git declares. This inverts the trust model: nothing
+outside the cluster can deploy; the cluster pulls. Git is the source of truth and
+the audit log.
 
 ### Artifact promotion
-One artifact, built once, identified by **immutable digest**. The exact image
-validated in CI is what reaches prod — we never rebuild per environment, so
-"passed in staging" means the identical bits ship. Overlays differ only in
-config/scale, never in image contents.
+One artifact, built once, identified by **immutable digest** — never rebuilt per
+env. Promotion = moving that tag through git:
+1. **dev:** Argo CD **Image Updater** sees the new image and writes the tag to
+   `deploy/overlays/dev` in git; Argo auto-syncs dev.
+2. **staging → prod:** a PR bumps the tag in the env overlay (or `argocd app
+   sync`). The staging/prod Applications have **no automated sync**, so promotion
+   is a deliberate, reviewed step.
+Because it's the same digest, "passed in staging" means the identical bits ship.
 
-### Rollback
-- **Fast path:** `kubectl -n web-prod rollout undo deploy/prod-web` (Kubernetes
-  keeps prior ReplicaSets) — seconds, no rebuild.
-- **Deliberate path:** re-run CD pinned to the previous known-good SHA/digest
-  (`workflow_dispatch` with `image_sha`), or in a GitOps model revert the Git
-  commit and let the controller reconcile.
-- `maxUnavailable: 0` + readiness gating mean a bad rollout never removes healthy
-  capacity before new pods are actually serving.
+### Progressive delivery & rollback
+- **Canary:** the `Rollout` shifts traffic 20 % → (Prometheus analysis) → 50 % →
+  100 %. If the success-rate gate fails, Argo Rollouts **auto-aborts** and traffic
+  stays on the stable version — a bad release never reaches 100 %.
+- **Rollback, fast:** `kubectl argo rollouts undo web -n web-prod` (or `abort`) —
+  seconds, no rebuild.
+- **Rollback, source-of-truth:** revert the git commit; Argo reconciles the
+  cluster back. The rollback is itself an auditable PR.
 
 ## Security decisions
 
@@ -163,38 +171,42 @@ prod alerts/autoscaling should key off latency/queue depth too.
   rather than pulling a stock image, and so probes/metrics are meaningful.
 - Single region, multi-AZ is sufficient for the 99.9 % target; multi-region DR is
   out of scope.
-- Terraform state is local here; a real setup uses a remote backend with locking,
-  one state per environment (noted in `infra/environments/*/providers.tf`).
+- Terraform state is local by default so `init` works with no cloud account; each
+  env ships a `backend.tf.example` (S3 + native state locking) to switch on.
+- `main` is governed by branch protection (PR-only, review, rebase/linear history);
+  see `docs/governance.md`.
 
 ## Trade-offs
 - **kind over a real cloud:** maximal reproducibility/zero cost for a reviewer, at
   the price of not exercising real cloud IAM/LB/managed data. The module boundary
   (`infra/modules/kind-cluster`) is where you'd swap in an EKS/AKS/GKE module
-  without touching envs, app, or CI/CD.
+  without touching envs, app, or CD.
+- **GitOps (Argo) over push-based CI deploys:** CI never holds cluster creds; the
+  cluster pulls from git. More moving parts (Argo CD/Rollouts controllers) but the
+  correct model past a single service — and the promotion/rollback story is git.
 - **Kustomize over Helm:** base/overlays make the "reusable vs env-specific" split
-  very explicit with no templating language; Helm would be better for packaging/
-  distributing many services (which is where I'd go at 30 services).
+  explicit with no templating; Helm is better for packaging *many* services (30).
 - **No CPU limit, memory limit set:** avoids CPU throttling latency; caps the
-  non-compressible resource. Deliberate — explained inline in `deployment.yaml`.
-- **CD deploy steps stubbed:** kept honest rather than pretending to hit a cluster
-  that doesn't exist; the promotion/rollback logic is the reviewable part.
+  non-compressible resource. Deliberate — explained inline in `rollout.yaml`.
+- **Canary analysis needs Prometheus:** installed as an addon; the AnalysisTemplate
+  queries the app's own `app_requests_total` for success rate.
 
 ## What I'd improve with more time
-- Wire CD to a real cluster (or a `kind`-in-CI job) and add post-deploy smoke +
-  automated rollback on failed `rollout status`.
-- Progressive delivery (Argo Rollouts / mesh canary) instead of plain rolling.
-- Image signing (cosign) + admission control (Kyverno/Gatekeeper) to enforce
+- Run Argo end-to-end on the local cluster (bootstrap script applies `argocd/`)
+  and demo a canary auto-abort; wire Argo notifications to Slack.
+- Image signing (cosign) + admission control (Kyverno/Gatekeeper) to only run
   signed, non-root, resource-bounded workloads.
-- Ship the observability stack (kube-prometheus-stack + OTel + Grafana
-  dashboards + SLO burn-rate alerts) as a Terraform-managed addon.
-- Default-deny `NetworkPolicy` in the app namespaces + secret management via
-  External Secrets, even locally (e.g. with a mock provider).
-- Remote Terraform backend + `terraform plan` in CI on PRs (with policy checks).
+- Full observability stack (kube-prometheus-stack + Grafana + OTel tracing) and
+  SLO burn-rate alerts as Terraform-managed addons.
+- Default-deny `NetworkPolicy` per namespace + secrets via External Secrets.
+- `terraform plan` + policy checks (tfsec/Checkov/OPA) as required PR status checks.
 
 ## AI tool usage
 I used an AI coding assistant (Claude) to scaffold the repo, draft manifests/IaC/
 docs, and speed up boilerplate. I validated everything locally: `pytest` on the
-app, `kustomize build` on all three overlays (cross-references, image, host, and
-HPA patches confirmed), `terraform fmt` + `init` + `validate` on the IaC, and
-`mermaid-cli` to confirm the diagrams render. I understand and stand behind every
-file here; the architecture and troubleshooting reasoning are my own decisions.
+app, `kustomize build` on all three overlays (image/host/HPA/config patches and
+the Rollout/Service wiring confirmed), `terraform fmt` + `init` + `validate` on
+the IaC, YAML-parsed the Argo manifests, and `mermaid-cli` to confirm the diagrams
+render. The architecture decisions — GitOps CD, canary strategy, no-CPU-limit,
+state locking, branch protection — are my own; I understand and stand behind every
+file here.

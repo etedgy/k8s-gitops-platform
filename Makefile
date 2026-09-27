@@ -27,19 +27,24 @@ load: build ## Load the locally-built image into the kind cluster
 	kind load docker-image $(IMAGE):$(TAG) --name assignment-$(ENV)
 
 .PHONY: deploy
-deploy: ## Deploy the app overlay for ENV, pinned to the local image
+deploy: ## Imperative deploy of the ENV overlay, pinned to the local image (quick local test)
 	cd deploy/overlays/$(ENV) && \
 		kubectl kustomize . | \
 		sed 's#ghcr.io/OWNER/assignment-web:$(ENV)#$(IMAGE):$(TAG)#' | \
 		kubectl apply -f -
-	kubectl -n web-$(ENV) rollout status deploy/$(ENV)-web --timeout=120s
+	kubectl -n web-$(ENV) wait --for=jsonpath='{.status.phase}'=Healthy rollout/$(ENV)-web --timeout=180s
+
+.PHONY: gitops
+gitops: ## GitOps path: hand the cluster to Argo CD (applies argocd/ project + root app)
+	kubectl apply -n argocd -f argocd/project.yaml
+	kubectl apply -n argocd -f argocd/root.yaml
 
 .PHONY: smoke
 smoke: ## Curl the app through the ingress
 	curl -fsS -H "Host: web.$(ENV).localtest.me" http://localhost/ && echo
 
 .PHONY: all
-all: up load deploy smoke ## Full path: cluster -> image -> deploy -> verify
+all: up load deploy smoke ## Full local path: cluster -> image -> deploy -> verify
 
 .PHONY: down
 down: ## Destroy the ENV cluster

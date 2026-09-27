@@ -107,7 +107,8 @@ and tight RBAC. See the README Security section for the threat model.
 |---|---|
 | Reusable infra vs env config | `infra/modules/*` vs `infra/environments/{dev,staging,prod}` |
 | Per-env app config | Kustomize `base` + `overlays/{dev,staging,prod}` |
-| Availability/scalability | HPA, PDB, topology spread, probes, `maxUnavailable: 0` |
-| Digest-based promotion + rollback | `.github/workflows/{ci,cd}.yaml` |
+| Availability/scalability | HPA, PDB, topology spread, probes |
+| GitOps CD + progressive delivery | `argocd/` (Argo CD) + `Rollout` canary + Prometheus analysis |
+| Digest-based promotion + rollback | CI pushes by SHA; Argo Image Updater + git revert |
 | Least privilege | dedicated SA, dropped caps, read-only rootfs, no API token |
 | Observability | `/metrics`, prometheus scrape annotations, RED metrics |

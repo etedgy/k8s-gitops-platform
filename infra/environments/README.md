@@ -26,20 +26,27 @@ terraform apply
 State is **local** here to keep the exercise self-contained. In a real setup each
 environment gets an isolated remote backend with locking, for example:
 
+Each env ships a `backend.tf.example` — rename it to `backend.tf` to enable it:
+
 ```hcl
 terraform {
   backend "s3" {
-    bucket         = "acme-tfstate"
-    key            = "web/dev/terraform.tfstate"   # per-env key
-    region         = "eu-west-1"
-    dynamodb_table = "tf-locks"
-    encrypt        = true
+    bucket       = "acme-tfstate"
+    key          = "web/dev/terraform.tfstate" # per-env key
+    region       = "eu-west-1"
+    encrypt      = true
+    use_lockfile = true # native S3 state locking (Terraform >= 1.10)
   }
 }
 ```
 
-Separate state per environment means a `terraform apply` in dev can never plan or
-destroy prod resources — the same blast-radius principle as separate clusters.
+**State locking** prevents two people (or a person and CI) running `apply` at once
+and corrupting state: the first holds a lock, the second waits. `use_lockfile`
+does this natively on S3; older setups used a DynamoDB table. Separate state per
+env also means a `terraform apply` in dev can never plan or destroy prod — the
+same blast-radius principle as separate clusters.
+
+Provider versions are already locked via the committed `.terraform.lock.hcl`.
 
 ## Swapping kind for a cloud
 
