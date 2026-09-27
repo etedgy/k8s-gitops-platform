@@ -60,27 +60,29 @@ flowchart LR
     argo["Argo CD\n(pull / reconcile)"] --> ro["Argo Rollout\n(canary)"]
     reg -->|Image Updater\nwrites tag to git| git
     git --> argo
-    ing["ingress-nginx\nweb.<env>.localtest.me"] --> stable["web-stable Svc"]
+    lb["MetalLB LoadBalancer\n(external IP)"] --> ing["ingress-nginx\nweb.<env>.localtest.me"]
+    ing --> stable["web-stable Svc"]
     ing -. canary weight .-> canary["web-canary Svc"]
     stable --> ro
     canary --> ro
     hpa["HPA (CPU 70%)"] -.scales.-> ro
     prom["Prometheus"] -.analysis gate.-> ro
   end
-  user(["curl / browser"]) --> ing
+  user(["curl / browser"]) --> lb
 ```
 
 - **Delivery:** CI only builds/scans/pushes; **Argo CD pulls** desired state from
   git and reconciles it (no external system holds cluster creds). **Argo Rollouts**
   does a **canary** (20 % → analysis → 50 % → 100 %), auto-aborting if the
   Prometheus success-rate gate fails.
-- **External exposure:** Ingress (`nginx`) → `web-stable` Service → pods, on
-  `web.<env>.localtest.me` (the `localtest.me` wildcard resolves to `127.0.0.1`).
-  During a canary, nginx splits traffic to `web-canary` by weight.
+- **External exposure:** **MetalLB** gives ingress-nginx a real `LoadBalancer`
+  external IP (not a NodePort/hostPort hack) → Ingress → `web-stable` Service →
+  pods. During a canary, nginx splits traffic to `web-canary` by weight.
 - **Health checks:** separate **liveness** (`/healthz`, cheap, dependency-free),
   **readiness** (`/readyz`, gates traffic), and **startup** probes.
-- **Networking:** Cilium is the CNI (kind's default doesn't enforce policy);
-  namespaces are **default-deny** with explicit allows only.
+- **Networking:** Cilium is the CNI (kind's default doesn't enforce policy),
+  with explicit pod/service subnets; namespaces are **default-deny** with explicit
+  allows only. MetalLB provides real LoadBalancer IPs.
 - **Availability & scalability:** `minReplicas ≥ 2` (prod 3), HPA on CPU,
   PodDisruptionBudget, topology spread across nodes.
 
@@ -206,12 +208,25 @@ prod alerts/autoscaling should key off latency/queue depth too.
 - Secrets via External Secrets Operator; Cilium L7 policies + Hubble dashboards.
 - `terraform plan` + policy checks (tfsec/Checkov/OPA) as required PR status checks.
 
+## Validation (run live, not just linted)
+The full stack was brought up end-to-end on a real kind cluster via `terraform
+apply` and verified:
+- `terraform apply` provisions the cluster + Cilium + MetalLB + ingress-nginx +
+  Argo CD + Argo Rollouts + Prometheus + metrics-server cleanly.
+- Nodes reach **Ready** (proves the Cilium-first ordering), MetalLB assigns a real
+  **LoadBalancer external IP**, and `curl` through `LB IP → ingress → web-stable →
+  pod` returns the app response.
+- **NetworkPolicy is enforced**: a pod in `default` is denied; a pod in the
+  allowed `monitoring` namespace succeeds.
+- App runs as a healthy Argo `Rollout` behind the HPA.
+
+Running it surfaced (and I fixed) several bugs static checks miss: Kustomize not
+rewriting name-references inside the Rollout CRD, `runAsNonRoot` needing a numeric
+UID, and gunicorn needing a writable `/tmp` under a read-only rootfs.
+
 ## AI tool usage
 I used an AI coding assistant (Claude) to scaffold the repo, draft manifests/IaC/
-docs, and speed up boilerplate. I validated everything locally: `pytest` on the
-app, `kustomize build` on all three overlays (image/host/HPA/config patches and
-the Rollout/Service wiring confirmed), `terraform fmt` + `init` + `validate` on
-the IaC, YAML-parsed the Argo manifests, and `mermaid-cli` to confirm the diagrams
-render. The architecture decisions — GitOps CD, canary strategy, no-CPU-limit,
+docs, and speed up boilerplate, then validated as above. The architecture
+decisions — GitOps CD, canary strategy, Cilium/MetalLB networking, no-CPU-limit,
 state locking, branch protection — are my own; I understand and stand behind every
 file here.
